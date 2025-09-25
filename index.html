@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Azure Static Web Apps — Hello 👋</title>
+  <style>
+    :root { --bg:#0b1220; --card:#121a2a; --text:#e6e9ef; --muted:#9aa3b2; --accent:#6aa9ff; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif; background: radial-gradient(1200px 600px at 80% -10%, #1b2640 0%, var(--bg) 60%); color: var(--text); display:flex; align-items:center; justify-content:center; padding: 24px; }
+    .card { width: min(720px, 100%); background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.35); backdrop-filter: blur(8px); }
+    h1 { margin: 0 0 8px; font-size: clamp(24px, 4vw, 36px); letter-spacing: 0.2px; }
+    p { margin: 8px 0; color: var(--muted); }
+    code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; }
+    .row { display:flex; gap: 16px; flex-wrap: wrap; margin-top: 20px; }
+    .pill { padding: 10px 14px; border-radius: 999px; background: #0f1729; border: 1px solid rgba(255,255,255,0.08); color: var(--muted); }
+    .actions { display:flex; gap:12px; margin-top: 24px; }
+    .btn { cursor:pointer; padding: 10px 14px; border-radius: 12px; border:1px solid rgba(255,255,255,0.12); background: #0e1628; color: var(--text); }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.25); }
+    footer { margin-top: 24px; font-size: 12px; color: var(--muted); opacity: .9; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🚀 Azure Static Web Apps</h1>
+    <p>This is a super-simple starter page deployed with <strong>Azure Static Web Apps</strong>. Edit <code>index.html</code>, commit, and your site redeploys automatically.</p>
+
+    <div class="row">
+      <span class="pill" id="host"></span>
+      <span class="pill" id="time"></span>
+      <span class="pill">No framework required</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="themeBtn" title="Toggle theme">Toggle theme</button>
+      <a class="btn" href="https://learn.microsoft.com/azure/static-web-apps/" target="_blank" rel="noopener">Docs</a>
+    </div>
+
+    <footer>
+      Tip: Add a <code>staticwebapp.config.json</code> later for routes/headers. For now, this single file is enough.
+    </footer>
+  </div>
+
+  <script>
+    const host = document.getElementById('host');
+    const time = document.getElementById('time');
+    host.textContent = `Host: ${location.host}`;
+    const updateTime = () => time.textContent = `Time: ${new Date().toLocaleString()}`;
+    updateTime(); setInterval(updateTime, 1000);
+
+    const themeBtn = document.getElementById('themeBtn');
+    themeBtn.addEventListener('click', () => {
+      const dark = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() === '#0b1220';
+      document.documentElement.style.setProperty('--bg', dark ? '#f5f7fb' : '#0b1220');
+      document.documentElement.style.setProperty('--card', dark ? '#ffffff' : '#121a2a');
+      document.documentElement.style.setProperty('--text', dark ? '#0b1220' : '#e6e9ef');
+      document.documentElement.style.setProperty('--muted', dark ? '#3a4456' : '#9aa3b2');
+      document.body.style.background = dark ? '#f5f7fb' : document.body.style.background;
+      document.body.style.color = dark ? '#0b1220' : '#e6e9ef';
+    });
+  </script>
+</body>
+</html>
+
