@@ -2,8 +2,13 @@
   "routes": [
     {
       "route": "/*",
+      "statusCode": 302,
+      "serve": "/.auth/login/aad",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/*",
       "allowedRoles": ["authenticated"]
     }
   ]
 }
-
