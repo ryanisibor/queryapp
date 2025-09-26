@@ -5,24 +5,27 @@ const querystring = require("querystring");
 function mapPreferredDefault(value) {
   switch (value) {
     case "microsoftAuthenticator":
-      return "Microsoft Authenticator";
+      return "Microsoft Authenticator app";
+    case "push":
+      return "Microsoft Authenticator app (push notification)";
     case "fido2":
       return "FIDO2 Security Key";
     case "windowsHelloForBusiness":
       return "Windows Hello for Business";
     case "mobilePhone":
-      return "Phone (mobile, SMS)";
+      return "Mobile phone (SMS)";
     case "alternateMobilePhone":
-      return "Phone (alternate mobile, SMS)";
+      return "Alternate mobile phone (SMS)";
     case "officePhone":
-      return "Phone (office, SMS)";
+      return "Office phone (SMS)";
     case "voiceMobile":
-      return "Phone (mobile, voice call)";
+      return "Mobile phone (voice call)";
     case "voiceAlternateMobile":
-      return "Phone (alternate mobile, voice call)";
+      return "Alternate mobile phone (voice call)";
     case "voiceOffice":
-      return "Phone (office, voice call)";
+      return "Office phone (voice call)";
     case "softwareOath":
+    case "oath":
       return "Software OATH Token";
     default:
       return value; // fallback to raw string
@@ -118,7 +121,7 @@ module.exports = async function (context, req) {
             friendly = {
               type: "Microsoft Authenticator",
               device: m.displayName || "Authenticator app",
-              isDefault: preferredDefaultRaw === "microsoftAuthenticator"
+              isDefault: preferredDefaultRaw === "microsoftAuthenticator" || preferredDefaultRaw === "push"
             };
             break;
 
@@ -160,7 +163,7 @@ module.exports = async function (context, req) {
             friendly = {
               type: "Software OATH Token",
               device: m.displayName || "OATH TOTP",
-              isDefault: preferredDefaultRaw === "softwareOath"
+              isDefault: preferredDefaultRaw === "softwareOath" || preferredDefaultRaw === "oath"
             };
             break;
 
