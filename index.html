@@ -6,27 +6,45 @@
   <title>MFA Lookup</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 2rem; }
-    input, button { padding: 0.5rem; margin-right: 0.5rem; }
-    #results { margin-top: 1rem; }
-    .error { color: red; margin-top: 1rem; }
-    .empty { color: #666; margin-top: 1rem; }
+    input, button { padding: 0.5rem; margin: 0.25rem; }
+    h1 { margin-bottom: 0.5rem; }
+    #results { margin-top: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
+    th { background: #f4f4f4; }
+    tr:nth-child(even) { background: #fafafa; }
+    .error { color: #b00020; font-weight: bold; }
+    .empty { color: #555; }
+    .info { color: #0066cc; }
+    .default { font-weight: bold; color: green; }
   </style>
 </head>
 <body>
   <h1>MFA Lookup Tool</h1>
   <p>Enter a User Principal Name (UPN) to see configured MFA methods.</p>
+  
   <input type="text" id="upnInput" placeholder="e.g. user@contoso.com" />
   <button onclick="lookupMfa()">Search</button>
+  <button onclick="clearResults()">Clear</button>
 
-  <div id="results"></div>
   <div id="message"></div>
+  <div id="results"></div>
 
   <script>
+    const icons = {
+      "Microsoft Authenticator": "📱",
+      "Phone": "📞",
+      "FIDO2 Security Key": "🔑",
+      "Windows Hello for Business": "💻",
+      "Software OATH Token": "⌚",
+      "Unknown": "❓"
+    };
+
     async function lookupMfa() {
       const upn = document.getElementById('upnInput').value.trim();
       const resultsDiv = document.getElementById('results');
       const messageDiv = document.getElementById('message');
-      
+
       resultsDiv.innerHTML = "";
       messageDiv.innerHTML = "";
 
@@ -44,7 +62,6 @@
 
         const data = await response.json();
 
-        // If Graph error bubble up
         if (data.error) {
           messageDiv.innerHTML = `<div class='error'>❌ Error: ${data.error}</div>`;
           return;
@@ -57,24 +74,48 @@
 
         let html = `<h2>MFA Methods for ${data.upn}</h2>`;
         if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph.friendly) {
-          html += `<p><b>Default MFA Method:</b> ${data.preferredDefaultFromGraph.friendly}</p>`;
+          html += `<p class='info'><b>Default MFA Method:</b> ${data.preferredDefaultFromGraph.friendly}</p>`;
         }
 
-        html += "<ul>";
-        data.methods.forEach(m => {
-          html += `<li>✔ ${m.type}`;
-          if (m.device) html += ` (${m.device})`;
-          if (m.number) html += ` (${m.number})`;
-          if (m.isDefault) html += " <b>[Default]</b>";
-          html += "</li>";
-        });
-        html += "</ul>";
+        html += `
+          <table>
+            <thead>
+              <tr>
+                <th>Icon</th>
+                <th>Method Type</th>
+                <th>Device / Number</th>
+                <th>Default?</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
 
+        data.methods.forEach(m => {
+          const icon = icons[m.type] || icons["Unknown"];
+          let deviceOrNumber = m.device || m.number || "-";
+          html += `
+            <tr>
+              <td>${icon}</td>
+              <td>${m.type}</td>
+              <td>${deviceOrNumber}</td>
+              <td>${m.isDefault ? "<span class='default'>✔ Yes</span>" : "—"}</td>
+            </tr>
+          `;
+        });
+
+        html += "</tbody></table>";
         resultsDiv.innerHTML = html;
+
       } catch (err) {
         console.error(err);
         messageDiv.innerHTML = `<div class='error'>❌ An error occurred while fetching MFA methods. Details: ${err.message}</div>`;
       }
+    }
+
+    function clearResults() {
+      document.getElementById('upnInput').value = "";
+      document.getElementById('results').innerHTML = "";
+      document.getElementById('message').innerHTML = "";
     }
   </script>
 </body>
