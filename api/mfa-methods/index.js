@@ -13,8 +13,13 @@ module.exports = async function (context, req) {
   }
 
   try {
-    // Token request to Microsoft identity platform
-    const tokenResponse = await fetch("https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0/token", {
+    const tenantId = process.env.TENANT_ID;
+    if (!tenantId) {
+      throw new Error("TENANT_ID environment variable is not set");
+    }
+
+    // 1. Get token
+    const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: querystring.stringify({
@@ -26,19 +31,28 @@ module.exports = async function (context, req) {
     });
 
     const tokenData = await tokenResponse.json();
+    if (!tokenResponse.ok) {
+      throw new Error(`Token request failed: ${JSON.stringify(tokenData)}`);
+    }
     const accessToken = tokenData.access_token;
 
-    // Get all auth methods
+    // 2. Get methods
     const methodsResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${upn}/authentication/methods`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const methodsData = await methodsResponse.json();
+    if (!methodsResponse.ok) {
+      throw new Error(`Methods request failed: ${JSON.stringify(methodsData)}`);
+    }
 
-    // Get default method
+    // 3. Get default preference
     const defaultResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${upn}/authentication/signInPreferences`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const defaultData = await defaultResponse.json();
+    if (!defaultResponse.ok) {
+      throw new Error(`Default method request failed: ${JSON.stringify(defaultData)}`);
+    }
 
     const friendlyMap = {
       "push": "Microsoft Authenticator app (push notification)",
@@ -51,7 +65,7 @@ module.exports = async function (context, req) {
       "softwareOath": "Software OATH Token"
     };
 
-    const preferredDefault = defaultData?.userPreferredMethodForSecondaryAuthentication;
+    const preferredDefault = defaultData?.userPreferredMethodForSecondaryAuthentication || null;
     const friendlyDefault = preferredDefault ? (friendlyMap[preferredDefault] || preferredDefault) : null;
 
     const methods = (methodsData.value || []).map(m => {
