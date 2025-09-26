@@ -44,6 +44,14 @@
       font-weight: bold;
       margin-bottom: 15px;
     }
+    .highlighted-method {
+      color: #1976d2; /* deep blue */
+      font-weight: bold;
+    }
+    .highlighted-upn {
+      color: #2e7d32; /* green */
+      font-weight: bold;
+    }
     table {
       border-collapse: collapse;
       width: 100%;
@@ -84,7 +92,7 @@
       "Unknown": "❓"
     };
 
-    // ✅ Trigger lookup when pressing Enter
+    // ✅ Trigger lookup when pressing Enter / clear on Escape
     document.getElementById("upnInput").addEventListener("keydown", function (event) {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -113,7 +121,7 @@
 
         if (!response.ok) {
           if (response.status === 404) {
-            messageDiv.innerHTML = `<div class='info'>ℹ️ User <b>${upn}</b> not found.</div>`;
+            messageDiv.innerHTML = `<div class='info'>ℹ️ User <span class="highlighted-upn">${upn}</span> not found.</div>`;
           } else if (response.status >= 500) {
             messageDiv.innerHTML = `<div class='error'>❌ Server error. Please try again later.</div>`;
           } else {
@@ -126,14 +134,15 @@
         const data = await response.json();
 
         if (!data.methods || data.methods.length === 0) {
-          resultsDiv.innerHTML = `<div class='info'>ℹ️ No MFA methods found for <b>${upn}</b>.</div>`;
+          resultsDiv.innerHTML = `<div class='info'>ℹ️ No MFA methods found for <span class="highlighted-upn">${upn}</span>.</div>`;
           return;
         }
 
         // Display default method prominently
         const defaultHtml = `
           <div class="default-method">
-            Default MFA Method for <b>${data.upn}</b>: ${data.preferredDefaultFromGraph.friendly}
+            Default MFA Method for <span class="highlighted-upn">${data.upn}</span>: 
+            <span class="highlighted-method">${data.preferredDefaultFromGraph.friendly}</span>
           </div>
         `;
 
