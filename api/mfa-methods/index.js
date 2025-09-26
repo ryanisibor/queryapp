@@ -67,29 +67,26 @@ module.exports = async function (context, req) {
       throw new Error("Failed to obtain Graph access token");
     }
 
-    // 📡 Call Graph for authentication methods (v1.0)
-    const methodsResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${upn}/authentication/methods`,
-      {
+    // 📡 Call Graph for methods (v1.0) and preferences (beta) in parallel
+    const [methodsResponse, prefResponse] = await Promise.all([
+      fetch(`https://graph.microsoft.com/v1.0/users/${upn}/authentication/methods`, {
         headers: { Authorization: `Bearer ${token}` }
-      }
-    );
-    const methodsData = await methodsResponse.json();
+      }),
+      fetch(`https://graph.microsoft.com/beta/users/${upn}/authentication/signInPreferences`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    ]);
+
+    const [methodsData, prefData] = await Promise.all([
+      methodsResponse.json(),
+      prefResponse.json()
+    ]);
 
     if (methodsData.error) {
       throw new Error(
         `Graph error (methods): ${methodsData.error.code} - ${methodsData.error.message}`
       );
     }
-
-    // 📡 Call Graph for sign-in preferences (beta)
-    const prefResponse = await fetch(
-      `https://graph.microsoft.com/beta/users/${upn}/authentication/signInPreferences`,
-      {
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    );
-    const prefData = await prefResponse.json();
 
     if (prefData.error) {
       throw new Error(
