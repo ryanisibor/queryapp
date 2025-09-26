@@ -12,7 +12,7 @@
     header {
       display: flex;
       align-items: center;
-      justify-content: center; /* center horizontally */
+      justify-content: center;
       background: #ffffff;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       padding: 15px;
@@ -28,10 +28,16 @@
     }
     main {
       padding: 20px;
+      text-align: center; /* center contents */
+    }
+    .search-container {
+      margin: 20px auto;
     }
     input {
       padding: 8px;
       font-size: 14px;
+      width: 280px;
+      max-width: 90%;
     }
     button {
       padding: 8px 12px;
@@ -40,11 +46,13 @@
       cursor: pointer;
     }
     #results {
-      margin-top: 20px;
+      margin: 20px auto;
       padding: 10px;
       background: #fff;
       border-radius: 6px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      max-width: 800px;
+      text-align: left; /* results should stay aligned left */
     }
     .error {
       color: red;
@@ -107,9 +115,11 @@
   </header>
 
   <main>
-    <input type="text" id="upnInput" placeholder="e.g. user@contoso.com"/>
-    <button id="searchBtn" onclick="lookupMfa()">Search</button>
-    <button onclick="clearResults()">Clear</button>
+    <div class="search-container">
+      <input type="text" id="upnInput" placeholder="e.g. user@contoso.com"/>
+      <button id="searchBtn" onclick="lookupMfa()">Search</button>
+      <button onclick="clearResults()">Clear</button>
+    </div>
 
     <div id="message"></div>
     <div id="results"></div>
