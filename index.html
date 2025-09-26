@@ -1,40 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>MFA Lookup</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; }
-    input, button { padding: 0.5rem; margin: 0.25rem; }
-    h1 { margin-bottom: 0.5rem; }
-    #results { margin-top: 1.5rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
-    th { background: #f4f4f4; }
-    tr:nth-child(even) { background: #fafafa; }
-    .defaultRow { background-color: #e6ffe6 !important; }
-    .error { color: #b00020; font-weight: bold; }
-    .empty { color: #555; }
-    .info-box {
-      border: 2px solid #4CAF50;
-      background: #f0fff0;
-      padding: 1rem;
-      margin: 1rem 0;
-      border-radius: 8px;
-      font-size: 1.2rem;
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f5f6fa;
     }
-    .info-box strong {
-      color: #2e7d32;
-      font-size: 1.3rem;
+    h1 {
+      color: #333;
+    }
+    input {
+      padding: 8px;
+      font-size: 14px;
+    }
+    button {
+      padding: 8px 12px;
+      margin-left: 5px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 10px;
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
+    .info {
+      color: gray;
+      margin-top: 10px;
+    }
+    .default-method {
+      background: #e3f2fd;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    .icon {
+      margin-right: 6px;
     }
   </style>
 </head>
 <body>
-  <h1>MFA Lookup Tool</h1>
-  <p>Enter a User Principal Name (UPN) to see configured MFA methods.</p>
-  
-  <input type="text" id="upnInput" placeholder="e.g. user@contoso.com" />
+  <h1>MFA Lookup</h1>
+  <input 
+    type="text" 
+    id="upnInput" 
+    placeholder="e.g. user@contoso.com"
+/>
   <button onclick="lookupMfa()">Search</button>
   <button onclick="clearResults()">Clear</button>
 
@@ -51,13 +84,13 @@
       "Unknown": "❓"
     };
 
-    // ✅ Keyboard shortcuts: Enter = Search, Escape = Clear
+    // ✅ Trigger lookup when pressing Enter
     document.getElementById("upnInput").addEventListener("keydown", function (event) {
       if (event.key === "Enter") {
         event.preventDefault();
         lookupMfa();
-      } else if (event.key === "Escape") {
-        event.preventDefault();
+      }
+      if (event.key === "Escape") {
         clearResults();
       }
     });
@@ -77,65 +110,57 @@
 
       try {
         const response = await fetch(`/api/mfa-methods?upn=${encodeURIComponent(upn)}`);
-        
+
         if (!response.ok) {
-          throw new Error(`Server responded with ${response.status}`);
+          if (response.status === 404) {
+            messageDiv.innerHTML = `<div class='info'>ℹ️ User <b>${upn}</b> not found.</div>`;
+          } else if (response.status >= 500) {
+            messageDiv.innerHTML = `<div class='error'>❌ Server error. Please try again later.</div>`;
+          } else {
+            const errData = await response.json();
+            messageDiv.innerHTML = `<div class='error'>❌ ${errData.error || "Unexpected error"}</div>`;
+          }
+          return;
         }
 
         const data = await response.json();
 
-        if (data.error) {
-          messageDiv.innerHTML = `<div class='error'>❌ Error: ${data.error}</div>`;
-          return;
-        }
-
         if (!data.methods || data.methods.length === 0) {
-          messageDiv.innerHTML = `<div class='empty'>ℹ️ No MFA methods found for <b>${upn}</b>.</div>`;
+          resultsDiv.innerHTML = `<div class='info'>ℹ️ No MFA methods found for <b>${upn}</b>.</div>`;
           return;
         }
 
-        let html = `<h2>MFA Methods for <b>${data.upn}</b></h2>`;
-
-        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph.friendly) {
-          html += `
-            <div class="info-box">
-              ⭐ <strong>Default MFA Method:</strong> ${data.preferredDefaultFromGraph.friendly}
-            </div>
-          `;
-        }
-
-        html += `
-          <table>
-            <thead>
-              <tr>
-                <th>Icon</th>
-                <th>Method Type</th>
-                <th>Device / Number</th>
-              </tr>
-            </thead>
-            <tbody>
+        // Display default method prominently
+        const defaultHtml = `
+          <div class="default-method">
+            Default MFA Method for <b>${data.upn}</b>: ${data.preferredDefaultFromGraph.friendly}
+          </div>
         `;
 
-        data.methods.forEach(m => {
-          const icon = icons[m.type] || icons["Unknown"];
-          const deviceOrNumber = m.device || m.number || "-";
-          const rowClass = m.isDefault ? "defaultRow" : "";
+        // Build methods table
+        const rows = data.methods.map(m => `
+          <tr>
+            <td>${icons[m.type] || icons["Unknown"]}</td>
+            <td>${m.type}</td>
+            <td>${m.device || m.number || m.model || "N/A"}</td>
+          </tr>
+        `).join("");
 
-          html += `
-            <tr class="${rowClass}">
-              <td>${icon}</td>
-              <td>${m.type}</td>
-              <td>${deviceOrNumber}</td>
+        const tableHtml = `
+          <table>
+            <tr>
+              <th></th>
+              <th>Type</th>
+              <th>Details</th>
             </tr>
-          `;
-        });
+            ${rows}
+          </table>
+        `;
 
-        html += "</tbody></table>";
-        resultsDiv.innerHTML = html;
+        resultsDiv.innerHTML = defaultHtml + tableHtml;
 
       } catch (err) {
-        console.error(err);
-        messageDiv.innerHTML = `<div class='error'>❌ An error occurred while fetching MFA methods. Details: ${err.message}</div>`;
+        messageDiv.innerHTML = `<div class='error'>❌ Unexpected error: ${err.message}</div>`;
       }
     }
 
