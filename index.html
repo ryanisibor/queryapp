@@ -47,11 +47,12 @@
       align-items: center;
     }
     .default-label {
-      margin-right: 40px; /* roughly 4 spaces worth of gap */
+      margin-right: 30px; /* ~4 spaces */
     }
     .highlighted-method {
       color: #1976d2; /* deep blue */
       font-weight: bold;
+      font-size: 1.2em; /* make it bigger */
     }
     .highlighted-upn {
       color: #2e7d32; /* green */
@@ -143,7 +144,7 @@
           return;
         }
 
-        // Display default method prominently with spacing
+        // Display default method prominently with spacing + bigger font
         const defaultHtml = `
           <div class="default-method">
             <span class="default-label">Default MFA Method for <span class="highlighted-upn">${data.upn}</span>:</span>
