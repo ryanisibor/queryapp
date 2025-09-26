@@ -46,8 +46,7 @@
   </div>
 
   <div id="results" class="methods"></div>
-
- <script>
+<script>
   async function lookupMfa() {
     const upn = document.getElementById("upnInput").value.trim();
     const resultsDiv = document.getElementById("results");
@@ -79,9 +78,11 @@
           display += ` (${method.model})`;
         }
 
-        // Highlight default method
-        if (method.isDefault) {
+        // Handle default status
+        if (method.isDefault === true) {
           display += " <strong>(Default)</strong>";
+        } else if (method.isDefault === null) {
+          display += " <em>(default info not available)</em>";
         }
 
         html += `<li class="method">✔ ${display}</li>`;
