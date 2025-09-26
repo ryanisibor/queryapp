@@ -56,98 +56,127 @@
   <div id="results" class="methods"></div>
   <div id="raw" class="methods" style="display:none;"></div>
 
-<script>
-  let lastResponse = null;
-  let showingRaw = false;
+  <script>
+    let lastResponse = null;
+    let showingRaw = false;
 
-  async function lookupMfa() {
-    const upn = document.getElementById("upnInput").value.trim();
-    const resultsDiv = document.getElementById("results");
-    const rawDiv = document.getElementById("raw");
-    const toggleBtn = document.getElementById("toggleBtn");
-    resultsDiv.innerHTML = "Searching...";
-    rawDiv.style.display = "none";
-    resultsDiv.style.display = "block";
-    toggleBtn.style.display = "none";
-
-    try {
-      const res = await fetch(`/api/mfa-methods?upn=${encodeURIComponent(upn)}`);
-      const data = await res.json();
-      lastResponse = data;
-
-      if (!data.methods || data.methods.length === 0) {
-        resultsDiv.innerHTML = "<p>No MFA methods found.</p>";
-        return;
+    // Map raw Graph "preferredDefaultFromGraph" values into friendly labels
+    function mapPreferredDefault(value) {
+      switch (value) {
+        case "microsoftAuthenticator":
+          return "Microsoft Authenticator";
+        case "fido2":
+          return "FIDO2 Security Key";
+        case "windowsHelloForBusiness":
+          return "Windows Hello for Business";
+        case "mobilePhone":
+          return "Phone (mobile, SMS)";
+        case "alternateMobilePhone":
+          return "Phone (alternate mobile, SMS)";
+        case "officePhone":
+          return "Phone (office, SMS)";
+        case "voiceMobile":
+          return "Phone (mobile, voice call)";
+        case "voiceAlternateMobile":
+          return "Phone (alternate mobile, voice call)";
+        case "voiceOffice":
+          return "Phone (office, voice call)";
+        case "email":
+          return "Email";
+        case "softwareOath":
+          return "Software OATH Token";
+        default:
+          return value; // fallback to raw string
       }
-
-      let html = `<h3>MFA Methods for ${upn}</h3>`;
-
-      // Show preferred default (from Graph beta / Entra portal)
-      if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph !== "unknown") {
-        html += `<p><strong>Default MFA Method (from Entra portal):</strong> ${data.preferredDefaultFromGraph}</p>`;
-      } else {
-        html += `<p><em>Default MFA Method info not available</em></p>`;
-      }
-
-      html += "<ul>";
-
-      for (const method of data.methods) {
-        let display = `${method.type}`;
-
-        if (method.number) {
-          display += ` (${method.number})`;
-        }
-        if (method.device && method.type !== "Phone") {
-          display += ` (${method.device})`;
-        }
-        if (method.model) {
-          display += ` (${method.model})`;
-        }
-
-        if (method.isDefault === true) {
-          display += " <strong>(Default)</strong>";
-        } else if (method.isDefault === null) {
-          display += " <em>(default info not available)</em>";
-        }
-
-        html += `<li class="method">✔ ${display}</li>`;
-      }
-
-      html += "</ul>";
-      resultsDiv.innerHTML = html;
-
-      // Enable toggle button
-      toggleBtn.style.display = "inline-block";
-      showingRaw = false;
-      toggleBtn.innerText = "Show Raw Data";
-    } catch (err) {
-      console.error(err);
-      resultsDiv.innerHTML = "<p style='color:red;'>Error fetching MFA methods</p>";
     }
-  }
 
-  function toggleRaw() {
-    const resultsDiv = document.getElementById("results");
-    const rawDiv = document.getElementById("raw");
-    const toggleBtn = document.getElementById("toggleBtn");
-
-    if (!lastResponse) return;
-
-    if (showingRaw) {
-      // Show friendly
+    async function lookupMfa() {
+      const upn = document.getElementById("upnInput").value.trim();
+      const resultsDiv = document.getElementById("results");
+      const rawDiv = document.getElementById("raw");
+      const toggleBtn = document.getElementById("toggleBtn");
+      resultsDiv.innerHTML = "Searching...";
       rawDiv.style.display = "none";
       resultsDiv.style.display = "block";
-      toggleBtn.innerText = "Show Raw Data";
-    } else {
-      // Show raw JSON
-      rawDiv.innerHTML = `<pre>${JSON.stringify(lastResponse, null, 2)}</pre>`;
-      rawDiv.style.display = "block";
-      resultsDiv.style.display = "none";
-      toggleBtn.innerText = "Show Friendly View";
+      toggleBtn.style.display = "none";
+
+      try {
+        const res = await fetch(`/api/mfa-methods?upn=${encodeURIComponent(upn)}`);
+        const data = await res.json();
+        lastResponse = data;
+
+        if (!data.methods || data.methods.length === 0) {
+          resultsDiv.innerHTML = "<p>No MFA methods found.</p>";
+          return;
+        }
+
+        let html = `<h3>MFA Methods for ${upn}</h3>`;
+
+        // Show preferred default (from Graph beta / Entra portal)
+        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph !== "unknown") {
+          const friendlyName = mapPreferredDefault(data.preferredDefaultFromGraph);
+          html += `<p><strong>Default MFA Method (from Entra portal):</strong> ${friendlyName}</p>`;
+        } else {
+          html += `<p><em>Default MFA Method info not available</em></p>`;
+        }
+
+        html += "<ul>";
+
+        for (const method of data.methods) {
+          let display = `${method.type}`;
+
+          if (method.number) {
+            display += ` (${method.number})`;
+          }
+          if (method.device && method.type !== "Phone") {
+            display += ` (${method.device})`;
+          }
+          if (method.model) {
+            display += ` (${method.model})`;
+          }
+
+          if (method.isDefault === true) {
+            display += " <strong>(Default)</strong>";
+          } else if (method.isDefault === null) {
+            display += " <em>(default info not available)</em>";
+          }
+
+          html += `<li class="method">✔ ${display}</li>`;
+        }
+
+        html += "</ul>";
+        resultsDiv.innerHTML = html;
+
+        // Enable toggle button
+        toggleBtn.style.display = "inline-block";
+        showingRaw = false;
+        toggleBtn.innerText = "Show Raw Data";
+      } catch (err) {
+        console.error(err);
+        resultsDiv.innerHTML = "<p style='color:red;'>Error fetching MFA methods</p>";
+      }
     }
 
-    showingRaw = !showingRaw;
-  }
-</script>
+    function toggleRaw() {
+      const resultsDiv = document.getElementById("results");
+      const rawDiv = document.getElementById("raw");
+      const toggleBtn = document.getElementById("toggleBtn");
+
+      if (!lastResponse) return;
+
+      if (showingRaw) {
+        rawDiv.style.display = "none";
+        resultsDiv.style.display = "block";
+        toggleBtn.innerText = "Show Raw Data";
+      } else {
+        rawDiv.innerHTML = `<pre>${JSON.stringify(lastResponse, null, 2)}</pre>`;
+        rawDiv.style.display = "block";
+        resultsDiv.style.display = "none";
+        toggleBtn.innerText = "Show Friendly View";
+      }
+
+      showingRaw = !showingRaw;
+    }
+  </script>
 </body>
 </html>
