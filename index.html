@@ -28,7 +28,7 @@
     }
     main {
       padding: 20px;
-      text-align: center; /* center contents */
+      text-align: center;
     }
     .search-container {
       margin: 20px auto;
@@ -52,7 +52,7 @@
       border-radius: 6px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       max-width: 800px;
-      text-align: left; /* results should stay aligned left */
+      text-align: left;
     }
     .error {
       color: red;
@@ -64,24 +64,27 @@
     }
     .default-method {
       background: #e3f2fd;
-      padding: 10px;
+      padding: 12px;
       border-radius: 6px;
       font-weight: bold;
       margin-bottom: 15px;
-      display: flex;
-      align-items: center;
     }
     .default-label {
-      margin-right: 40px;
+      display: block; /* forces onto its own line */
+      margin-bottom: 5px;
+    }
+    .highlighted-upn {
+      display: block; /* ensures UPN is always below the label */
+      margin-left: 15px;
+      color: #2e7d32;
+      font-weight: bold;
     }
     .highlighted-method {
       color: #1976d2;
       font-weight: bold;
-      font-size: 1.2em;
-    }
-    .highlighted-upn {
-      color: #2e7d32;
-      font-weight: bold;
+      font-size: 1em; /* same size as default-label */
+      margin-left: 15px;
+      display: block; /* puts method on its own line */
     }
     table {
       border-collapse: collapse;
@@ -159,7 +162,6 @@
         return;
       }
 
-      // Show loading and disable button
       messageDiv.innerHTML = "<div class='loading'>⏳ Loading MFA methods...</div>";
       searchBtn.disabled = true;
 
@@ -186,17 +188,16 @@
           return;
         }
 
-        messageDiv.innerHTML = ""; // clear loading / errors
+        messageDiv.innerHTML = "";
 
-        // Default method section
         const defaultHtml = `
           <div class="default-method">
-            <span class="default-label">Default MFA Method for <span class="highlighted-upn">${data.upn}</span>:</span>
+            <span class="default-label">Default MFA Method for</span>
+            <span class="highlighted-upn">${data.upn}</span>
             <span class="highlighted-method">${data.preferredDefaultFromGraph.friendly}</span>
           </div>
         `;
 
-        // Table with title
         const rows = data.methods.map(m => `
           <tr>
             <td>${icons[m.type] || icons["Unknown"]}</td>
@@ -222,7 +223,7 @@
       } catch (err) {
         messageDiv.innerHTML = `<div class='error'>❌ Unexpected error: ${err.message}</div>`;
       } finally {
-        searchBtn.disabled = false; // re-enable button
+        searchBtn.disabled = false;
       }
     }
 
