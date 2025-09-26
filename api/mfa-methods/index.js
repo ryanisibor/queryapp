@@ -1,6 +1,36 @@
 const fetch = require("node-fetch");
 const querystring = require("querystring");
 
+// Map Graph values to friendly names
+function mapPreferredDefault(value) {
+  switch (value) {
+    case "microsoftAuthenticator":
+      return "Microsoft Authenticator";
+    case "fido2":
+      return "FIDO2 Security Key";
+    case "windowsHelloForBusiness":
+      return "Windows Hello for Business";
+    case "mobilePhone":
+      return "Phone (mobile, SMS)";
+    case "alternateMobilePhone":
+      return "Phone (alternate mobile, SMS)";
+    case "officePhone":
+      return "Phone (office, SMS)";
+    case "voiceMobile":
+      return "Phone (mobile, voice call)";
+    case "voiceAlternateMobile":
+      return "Phone (alternate mobile, voice call)";
+    case "voiceOffice":
+      return "Phone (office, voice call)";
+    case "email":
+      return "Email";
+    case "softwareOath":
+      return "Software OATH Token";
+    default:
+      return value; // fallback to raw string
+  }
+}
+
 module.exports = async function (context, req) {
   const upn = req.query.upn;
 
@@ -69,7 +99,8 @@ module.exports = async function (context, req) {
       );
     }
 
-    const preferredDefault = prefData.userPreferredMethodForSecondaryAuthentication || "unknown";
+    const preferredDefaultRaw = prefData.userPreferredMethodForSecondaryAuthentication || "unknown";
+    const preferredDefaultFriendly = mapPreferredDefault(preferredDefaultRaw);
 
     // 🎯 Normalize methods
     const methods = methodsData.value
@@ -87,7 +118,7 @@ module.exports = async function (context, req) {
             friendly = {
               type: "Microsoft Authenticator",
               device: m.displayName || "Authenticator app",
-              isDefault: (preferredDefault === "microsoftAuthenticator")
+              isDefault: preferredDefaultRaw === "microsoftAuthenticator"
             };
             break;
 
@@ -97,7 +128,14 @@ module.exports = async function (context, req) {
               number: m.phoneNumber || "N/A",
               phoneType: m.phoneType,
               smsSignInEnabled: m.smsSignInState === "enabled",
-              isDefault: (preferredDefault === "mobilePhone")
+              isDefault: [
+                "mobilePhone",
+                "alternateMobilePhone",
+                "officePhone",
+                "voiceMobile",
+                "voiceAlternateMobile",
+                "voiceOffice"
+              ].includes(preferredDefaultRaw)
             };
             break;
 
@@ -105,7 +143,7 @@ module.exports = async function (context, req) {
             friendly = {
               type: "FIDO2 Security Key",
               model: m.model || "Security Key",
-              isDefault: (preferredDefault === "fido2")
+              isDefault: preferredDefaultRaw === "fido2"
             };
             break;
 
@@ -114,7 +152,7 @@ module.exports = async function (context, req) {
               type: "Windows Hello for Business",
               device: m.displayName || "Windows Hello",
               keyStrength: m.keyStrength,
-              isDefault: (preferredDefault === "windowsHelloForBusiness")
+              isDefault: preferredDefaultRaw === "windowsHelloForBusiness"
             };
             break;
 
@@ -122,7 +160,7 @@ module.exports = async function (context, req) {
             friendly = {
               type: "Software OATH Token",
               device: m.displayName || "OATH TOTP",
-              isDefault: (preferredDefault === "softwareOath")
+              isDefault: preferredDefaultRaw === "softwareOath"
             };
             break;
 
@@ -137,7 +175,10 @@ module.exports = async function (context, req) {
       status: 200,
       body: {
         upn: upn,
-        preferredDefaultFromGraph: preferredDefault,
+        preferredDefaultFromGraph: {
+          raw: preferredDefaultRaw,
+          friendly: preferredDefaultFriendly
+        },
         methods: methods
       }
     };
