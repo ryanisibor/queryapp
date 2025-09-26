@@ -111,9 +111,7 @@ module.exports = async function (context, req) {
           type === "#microsoft.graph.passwordAuthenticationMethod" ||
           type === "#microsoft.graph.emailAuthenticationMethod"
         ) {
-          context.log(
-            `Skipping method ${type} for user ${upn}`
-          );
+          context.log(`Skipping method ${type} for user ${upn}`);
           return null;
         }
 
@@ -178,6 +176,11 @@ module.exports = async function (context, req) {
         return friendly;
       })
       .filter((m) => m !== null);
+
+    // 📋 Summary log
+    context.log(
+      `User ${upn} has ${methods.length} MFA methods. Preferred default (raw: ${preferredDefaultRaw}, friendly: ${preferredDefaultFriendly})`
+    );
 
     context.res = {
       status: 200,
