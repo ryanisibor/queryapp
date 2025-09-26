@@ -90,16 +90,32 @@ module.exports = async function (context, req) {
       prefResponse.json()
     ]);
 
+    // Handle Graph errors for methods
     if (methodsData.error) {
-      throw new Error(
-        `Graph error (methods): ${methodsData.error.code} - ${methodsData.error.message}`
-      );
+      const code = methodsData.error.code || "";
+      const message = methodsData.error.message || "Unknown Graph error";
+
+      if (code === "Request_ResourceNotFound") {
+        context.res = { status: 404, body: { error: `User ${upn} not found` } };
+        return;
+      }
+
+      context.res = { status: 400, body: { error: `Graph error: ${message}` } };
+      return;
     }
 
+    // Handle Graph errors for preferences
     if (prefData.error) {
-      throw new Error(
-        `Graph error (preferences): ${prefData.error.code} - ${prefData.error.message}`
-      );
+      const code = prefData.error.code || "";
+      const message = prefData.error.message || "Unknown Graph error";
+
+      if (code === "Request_ResourceNotFound") {
+        context.res = { status: 404, body: { error: `User ${upn} not found` } };
+        return;
+      }
+
+      context.res = { status: 400, body: { error: `Graph error: ${message}` } };
+      return;
     }
 
     const preferredDefaultRaw =
