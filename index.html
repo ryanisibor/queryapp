@@ -36,6 +36,13 @@
     .method:last-child {
       border-bottom: none;
     }
+    pre {
+      background: #222;
+      color: #eee;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
   </style>
 </head>
 <body>
@@ -43,59 +50,96 @@
   <div>
     <input type="text" id="upnInput" placeholder="Enter UserPrincipalName" />
     <button onclick="lookupMfa()">Search</button>
+    <button id="toggleBtn" onclick="toggleRaw()" style="display:none;">Show Raw Data</button>
   </div>
 
   <div id="results" class="methods"></div>
-<script>
-  async function lookupMfa() {
-    const upn = document.getElementById("upnInput").value.trim();
-    const resultsDiv = document.getElementById("results");
-    resultsDiv.innerHTML = "Searching...";
+  <div id="raw" class="methods" style="display:none;"></div>
 
-    try {
-      const res = await fetch(`/api/mfa-methods?upn=${encodeURIComponent(upn)}`);
-      const data = await res.json();
+  <script>
+    let lastResponse = null;
+    let showingRaw = false;
 
-      if (!data.methods || data.methods.length === 0) {
-        resultsDiv.innerHTML = "<p>No MFA methods found.</p>";
-        return;
+    async function lookupMfa() {
+      const upn = document.getElementById("upnInput").value.trim();
+      const resultsDiv = document.getElementById("results");
+      const rawDiv = document.getElementById("raw");
+      const toggleBtn = document.getElementById("toggleBtn");
+      resultsDiv.innerHTML = "Searching...";
+      rawDiv.style.display = "none";
+      resultsDiv.style.display = "block";
+      toggleBtn.style.display = "none";
+
+      try {
+        const res = await fetch(`/api/mfa-methods?upn=${encodeURIComponent(upn)}`);
+        const data = await res.json();
+        lastResponse = data;
+
+        if (!data.methods || data.methods.length === 0) {
+          resultsDiv.innerHTML = "<p>No MFA methods found.</p>";
+          return;
+        }
+
+        let html = `<h3>MFA Methods for ${upn}</h3>`;
+        html += "<ul>";
+
+        for (const method of data.methods) {
+          let display = `${method.type}`;
+
+          if (method.number) {
+            display += ` (${method.number})`;
+          }
+          if (method.device && method.type !== "Phone") {
+            display += ` (${method.device})`;
+          }
+          if (method.model) {
+            display += ` (${method.model})`;
+          }
+
+          if (method.isDefault === true) {
+            display += " <strong>(Default)</strong>";
+          } else if (method.isDefault === null) {
+            display += " <em>(default info not available)</em>";
+          }
+
+          html += `<li class="method">✔ ${display}</li>`;
+        }
+
+        html += "</ul>";
+        resultsDiv.innerHTML = html;
+
+        // Enable toggle button
+        toggleBtn.style.display = "inline-block";
+        showingRaw = false;
+        toggleBtn.innerText = "Show Raw Data";
+      } catch (err) {
+        console.error(err);
+        resultsDiv.innerHTML = "<p style='color:red;'>Error fetching MFA methods</p>";
       }
-
-      let html = `<h3>MFA Methods for ${upn}</h3>`;
-      html += "<ul>";
-
-      for (const method of data.methods) {
-        let display = `${method.type}`;
-
-        // Add extra info if available
-        if (method.number) {
-          display += ` (${method.number})`;
-        }
-        if (method.device && method.type !== "Phone") {
-          display += ` (${method.device})`;
-        }
-        if (method.model) {
-          display += ` (${method.model})`;
-        }
-
-        // Handle default status
-        if (method.isDefault === true) {
-          display += " <strong>(Default)</strong>";
-        } else if (method.isDefault === null) {
-          display += " <em>(default info not available)</em>";
-        }
-
-        html += `<li class="method">✔ ${display}</li>`;
-      }
-
-      html += "</ul>";
-      resultsDiv.innerHTML = html;
-    } catch (err) {
-      console.error(err);
-      resultsDiv.innerHTML = "<p style='color:red;'>Error fetching MFA methods</p>";
     }
-  }
-</script>
+
+    function toggleRaw() {
+      const resultsDiv = document.getElementById("results");
+      const rawDiv = document.getElementById("raw");
+      const toggleBtn = document.getElementById("toggleBtn");
+
+      if (!lastResponse) return;
+
+      if (showingRaw) {
+        // Show friendly
+        rawDiv.style.display = "none";
+        resultsDiv.style.display = "block";
+        toggleBtn.innerText = "Show Raw Data";
+      } else {
+        // Show raw JSON
+        rawDiv.innerHTML = `<pre>${JSON.stringify(lastResponse, null, 2)}</pre>`;
+        rawDiv.style.display = "block";
+        resultsDiv.style.display = "none";
+        toggleBtn.innerText = "Show Friendly View";
+      }
+
+      showingRaw = !showingRaw;
+    }
+  </script>
 </body>
 </html>
-
