@@ -39,28 +39,44 @@ module.exports = async function (context, req) {
       throw new Error("Failed to obtain Graph access token");
     }
 
-    // 📡 Call Graph for authentication methods
-    const graphResponse = await fetch(
+    // 📡 Call Graph for authentication methods (v1.0)
+    const methodsResponse = await fetch(
       `https://graph.microsoft.com/v1.0/users/${upn}/authentication/methods`,
       {
         headers: { Authorization: `Bearer ${token}` }
       }
     );
+    const methodsData = await methodsResponse.json();
 
-    const graphData = await graphResponse.json();
-
-    if (graphData.error) {
+    if (methodsData.error) {
       throw new Error(
-        `Graph error: ${graphData.error.code} - ${graphData.error.message}`
+        `Graph error (methods): ${methodsData.error.code} - ${methodsData.error.message}`
       );
     }
 
+    // 📡 Call Graph for sign-in preferences (beta)
+    const prefResponse = await fetch(
+      `https://graph.microsoft.com/beta/users/${upn}/authentication/signInPreferences`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    const prefData = await prefResponse.json();
+
+    if (prefData.error) {
+      throw new Error(
+        `Graph error (preferences): ${prefData.error.code} - ${prefData.error.message}`
+      );
+    }
+
+    const preferredDefault = prefData.userPreferredMethodForSecondaryAuthentication || "unknown";
+
     // 🎯 Normalize methods
-    const methods = graphData.value
+    const methods = methodsData.value
       .map((m) => {
         const type = m["@odata.type"];
 
-        // Skip password authentication (not MFA)
+        // Skip passwordAuthenticationMethod (not MFA)
         if (type === "#microsoft.graph.passwordAuthenticationMethod") {
           return null;
         }
@@ -71,7 +87,7 @@ module.exports = async function (context, req) {
             friendly = {
               type: "Microsoft Authenticator",
               device: m.displayName || "Authenticator app",
-              isDefault: m.isDefault === true
+              isDefault: (preferredDefault === "microsoftAuthenticator")
             };
             break;
 
@@ -81,8 +97,7 @@ module.exports = async function (context, req) {
               number: m.phoneNumber || "N/A",
               phoneType: m.phoneType,
               smsSignInEnabled: m.smsSignInState === "enabled",
-              // Graph doesn’t expose default info for phones
-              isDefault: null
+              isDefault: (preferredDefault === "mobilePhone")
             };
             break;
 
@@ -90,7 +105,7 @@ module.exports = async function (context, req) {
             friendly = {
               type: "FIDO2 Security Key",
               model: m.model || "Security Key",
-              isDefault: m.isDefault === true
+              isDefault: (preferredDefault === "fido2")
             };
             break;
 
@@ -99,8 +114,7 @@ module.exports = async function (context, req) {
               type: "Windows Hello for Business",
               device: m.displayName || "Windows Hello",
               keyStrength: m.keyStrength,
-              // Graph doesn’t expose default info here either
-              isDefault: null
+              isDefault: (preferredDefault === "windowsHelloForBusiness")
             };
             break;
 
@@ -108,12 +122,12 @@ module.exports = async function (context, req) {
             friendly = {
               type: "Software OATH Token",
               device: m.displayName || "OATH TOTP",
-              isDefault: null
+              isDefault: (preferredDefault === "softwareOath")
             };
             break;
 
           default:
-            friendly = { type: type || "Unknown", raw: m };
+            friendly = { type: type || "Unknown", raw: m, isDefault: false };
         }
         return friendly;
       })
@@ -123,6 +137,7 @@ module.exports = async function (context, req) {
       status: 200,
       body: {
         upn: upn,
+        preferredDefaultFromGraph: preferredDefault,
         methods: methods
       }
     };
