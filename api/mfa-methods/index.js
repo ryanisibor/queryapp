@@ -111,6 +111,9 @@ module.exports = async function (context, req) {
           type === "#microsoft.graph.passwordAuthenticationMethod" ||
           type === "#microsoft.graph.emailAuthenticationMethod"
         ) {
+          context.log(
+            `Skipping method ${type} for user ${upn}`
+          );
           return null;
         }
 
@@ -167,6 +170,9 @@ module.exports = async function (context, req) {
             break;
 
           default:
+            context.log(
+              `Encountered unknown auth method type: ${type} for user ${upn}`
+            );
             friendly = { type: type || "Unknown", raw: m, isDefault: false };
         }
         return friendly;
