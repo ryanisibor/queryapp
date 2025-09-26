@@ -51,20 +51,12 @@
       "Unknown": "❓"
     };
 
-    // Map Graph raw values to friendlier display names
-    function mapFriendlyDefault(raw) {
-      switch (raw) {
-        case "push": return "Microsoft Authenticator app (push notification)";
-        case "microsoftAuthenticator": return "Microsoft Authenticator app";
-        case "fido2": return "FIDO2 Security Key";
-        case "windowsHelloForBusiness": return "Windows Hello for Business";
-        case "mobilePhone": return "Phone (mobile, SMS)";
-        case "voiceMobile": return "Phone (mobile, voice call)";
-        case "voiceOffice": return "Phone (office, voice call)";
-        case "softwareOath": return "Software OATH Token";
-        default: return raw;
+    // Add Enter key handler
+    document.getElementById('upnInput').addEventListener("keyup", function(event) {
+      if (event.key === "Enter") {
+        lookupMfa();
       }
-    }
+    });
 
     async function lookupMfa() {
       const upn = document.getElementById('upnInput').value.trim();
@@ -98,13 +90,12 @@
           return;
         }
 
-        let html = `<h2>MFA Methods for ${data.upn}</h2>`;
+        let html = `<h2>MFA Methods for <b>${data.upn}</b></h2>`;
 
-        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph.raw) {
-          const friendlyDefault = mapFriendlyDefault(data.preferredDefaultFromGraph.raw);
+        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph.friendly) {
           html += `
             <div class="info-box">
-              ⭐ <strong>Default MFA Method:</strong> ${friendlyDefault}
+              ⭐ <strong>Default MFA Method:</strong> ${data.preferredDefaultFromGraph.friendly}
             </div>
           `;
         }
