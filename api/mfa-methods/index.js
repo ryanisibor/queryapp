@@ -1,200 +1,91 @@
 const fetch = require("node-fetch");
 const querystring = require("querystring");
 
-// Map Graph values to friendly names
-function mapPreferredDefault(value) {
-  switch (value) {
-    case "microsoftAuthenticator":
-      return "Microsoft Authenticator";
-    case "fido2":
-      return "FIDO2 Security Key";
-    case "windowsHelloForBusiness":
-      return "Windows Hello for Business";
-    case "mobilePhone":
-      return "Phone (mobile, SMS)";
-    case "alternateMobilePhone":
-      return "Phone (alternate mobile, SMS)";
-    case "officePhone":
-      return "Phone (office, SMS)";
-    case "voiceMobile":
-      return "Phone (mobile, voice call)";
-    case "voiceAlternateMobile":
-      return "Phone (alternate mobile, voice call)";
-    case "voiceOffice":
-      return "Phone (office, voice call)";
-    case "softwareOath":
-      return "Software OATH Token";
-    default:
-      return value; // fallback to raw string
-  }
-}
-
 module.exports = async function (context, req) {
   const upn = req.query.upn;
 
   if (!upn) {
     context.res = {
       status: 400,
-      body: { error: "Please provide a userPrincipalName (?upn=...)" }
+      body: { error: "Missing required query parameter: upn" }
     };
     return;
   }
 
   try {
-    // 🔑 Get token for Graph
-    const tenantId = process.env.TENANT_ID;
-    const clientId = process.env.CLIENT_ID;
-    const clientSecret = process.env.CLIENT_SECRET;
-
-    const tokenResponse = await fetch(
-      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: querystring.stringify({
-          client_id: clientId,
-          scope: "https://graph.microsoft.com/.default",
-          client_secret: clientSecret,
-          grant_type: "client_credentials"
-        })
-      }
-    );
+    // Token request to Microsoft identity platform
+    const tokenResponse = await fetch("https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: querystring.stringify({
+        client_id: process.env.CLIENT_ID,
+        client_secret: process.env.CLIENT_SECRET,
+        scope: "https://graph.microsoft.com/.default",
+        grant_type: "client_credentials"
+      })
+    });
 
     const tokenData = await tokenResponse.json();
-    const token = tokenData.access_token;
+    const accessToken = tokenData.access_token;
 
-    if (!token) {
-      throw new Error("Failed to obtain Graph access token");
-    }
+    // Get all auth methods
+    const methodsResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${upn}/authentication/methods`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const methodsData = await methodsResponse.json();
 
-    // 📡 Call Graph for methods (v1.0) and preferences (beta) in parallel
-    const [methodsResponse, prefResponse] = await Promise.all([
-      fetch(`https://graph.microsoft.com/v1.0/users/${upn}/authentication/methods`, {
-        headers: { Authorization: `Bearer ${token}` }
-      }),
-      fetch(`https://graph.microsoft.com/beta/users/${upn}/authentication/signInPreferences`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-    ]);
+    // Get default method
+    const defaultResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${upn}/authentication/signInPreferences`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const defaultData = await defaultResponse.json();
 
-    const [methodsData, prefData] = await Promise.all([
-      methodsResponse.json(),
-      prefResponse.json()
-    ]);
+    const friendlyMap = {
+      "push": "Microsoft Authenticator app (push notification)",
+      "microsoftAuthenticator": "Microsoft Authenticator app",
+      "fido2": "FIDO2 Security Key",
+      "windowsHelloForBusiness": "Windows Hello for Business",
+      "mobilePhone": "Phone (mobile, SMS)",
+      "voiceMobile": "Phone (mobile, voice call)",
+      "voiceOffice": "Phone (office, voice call)",
+      "softwareOath": "Software OATH Token"
+    };
 
-    if (methodsData.error) {
-      throw new Error(
-        `Graph error (methods): ${methodsData.error.code} - ${methodsData.error.message}`
-      );
-    }
+    const preferredDefault = defaultData?.userPreferredMethodForSecondaryAuthentication;
+    const friendlyDefault = preferredDefault ? (friendlyMap[preferredDefault] || preferredDefault) : null;
 
-    if (prefData.error) {
-      throw new Error(
-        `Graph error (preferences): ${prefData.error.code} - ${prefData.error.message}`
-      );
-    }
-
-    const preferredDefaultRaw =
-      prefData.userPreferredMethodForSecondaryAuthentication || "unknown";
-    const preferredDefaultFriendly = mapPreferredDefault(preferredDefaultRaw);
-
-    // 🎯 Normalize methods
-    const methods = methodsData.value
-      .map((m) => {
-        const type = m["@odata.type"];
-
-        // Skip password and email authentication methods (not MFA)
-        if (
-          type === "#microsoft.graph.passwordAuthenticationMethod" ||
-          type === "#microsoft.graph.emailAuthenticationMethod"
-        ) {
-          context.log(`Skipping method ${type} for user ${upn}`);
-          return null;
-        }
-
-        let friendly = {};
-        switch (type) {
-          case "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod":
-            friendly = {
-              type: "Microsoft Authenticator",
-              device: m.displayName || "Authenticator app",
-              isDefault: preferredDefaultRaw === "microsoftAuthenticator"
-            };
-            break;
-
-          case "#microsoft.graph.phoneAuthenticationMethod":
-            friendly = {
-              type: "Phone",
-              number: m.phoneNumber || "N/A",
-              phoneType: m.phoneType,
-              smsSignInEnabled: m.smsSignInState === "enabled",
-              isDefault: [
-                "mobilePhone",
-                "alternateMobilePhone",
-                "officePhone",
-                "voiceMobile",
-                "voiceAlternateMobile",
-                "voiceOffice"
-              ].includes(preferredDefaultRaw)
-            };
-            break;
-
-          case "#microsoft.graph.fido2AuthenticationMethod":
-            friendly = {
-              type: "FIDO2 Security Key",
-              model: m.model || "Security Key",
-              isDefault: preferredDefaultRaw === "fido2"
-            };
-            break;
-
-          case "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod":
-            friendly = {
-              type: "Windows Hello for Business",
-              device: m.displayName || "Windows Hello",
-              keyStrength: m.keyStrength,
-              isDefault: preferredDefaultRaw === "windowsHelloForBusiness"
-            };
-            break;
-
-          case "#microsoft.graph.softwareOathAuthenticationMethod":
-            friendly = {
-              type: "Software OATH Token",
-              device: m.displayName || "OATH TOTP",
-              isDefault: preferredDefaultRaw === "softwareOath"
-            };
-            break;
-
-          default:
-            context.log(
-              `Encountered unknown auth method type: ${type} for user ${upn}`
-            );
-            friendly = { type: type || "Unknown", raw: m, isDefault: false };
-        }
-        return friendly;
-      })
-      .filter((m) => m !== null);
-
-    // 📋 Summary log
-    context.log(
-      `User ${upn} has ${methods.length} MFA methods. Preferred default (raw: ${preferredDefaultRaw}, friendly: ${preferredDefaultFriendly})`
-    );
+    const methods = (methodsData.value || []).map(m => {
+      if (m["@odata.type"] === "#microsoft.graph.fido2AuthenticationMethod") {
+        return { type: "FIDO2 Security Key", model: m.model, isDefault: false };
+      } else if (m["@odata.type"] === "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod") {
+        return { type: "Windows Hello for Business", device: m.displayName, keyStrength: m.keyStrength };
+      } else if (m["@odata.type"] === "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod") {
+        return { type: "Microsoft Authenticator", device: m.displayName, isDefault: false };
+      } else if (m["@odata.type"] === "#microsoft.graph.phoneAuthenticationMethod") {
+        return { type: "Phone", number: m.phoneNumber, phoneType: m.phoneType, smsSignInEnabled: m.smsSignInEnabled, isDefault: false };
+      } else if (m["@odata.type"] === "#microsoft.graph.softwareOathAuthenticationMethod") {
+        return { type: "Software OATH Token", secretKey: m.secretKey, isDefault: false };
+      } else {
+        return { type: m["@odata.type"], raw: m };
+      }
+    }).filter(m => !m.type.startsWith("#microsoft.graph.emailAuthenticationMethod"));
 
     context.res = {
       status: 200,
       body: {
-        upn: upn,
-        preferredDefaultFromGraph: {
-          raw: preferredDefaultRaw,
-          friendly: preferredDefaultFriendly
-        },
-        methods: methods
+        upn,
+        preferredDefaultFromGraph: preferredDefault
+          ? { raw: preferredDefault, friendly: friendlyDefault }
+          : null,
+        methods
       }
     };
+
   } catch (err) {
-    context.log.error(err);
+    context.log.error("Error fetching MFA methods:", err);
     context.res = {
       status: 500,
-      body: { error: err.message }
+      body: { error: "Failed to fetch MFA methods", details: err.message }
     };
   }
 };

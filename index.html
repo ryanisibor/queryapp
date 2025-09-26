@@ -16,7 +16,18 @@
     .defaultRow { background-color: #e6ffe6 !important; }
     .error { color: #b00020; font-weight: bold; }
     .empty { color: #555; }
-    .info { color: #0066cc; }
+    .info-box {
+      border: 2px solid #4CAF50;
+      background: #f0fff0;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 8px;
+      font-size: 1.2rem;
+    }
+    .info-box strong {
+      color: #2e7d32;
+      font-size: 1.3rem;
+    }
   </style>
 </head>
 <body>
@@ -39,6 +50,21 @@
       "Software OATH Token": "⌚",
       "Unknown": "❓"
     };
+
+    // Map Graph raw values to friendlier display names
+    function mapFriendlyDefault(raw) {
+      switch (raw) {
+        case "push": return "Microsoft Authenticator app (push notification)";
+        case "microsoftAuthenticator": return "Microsoft Authenticator app";
+        case "fido2": return "FIDO2 Security Key";
+        case "windowsHelloForBusiness": return "Windows Hello for Business";
+        case "mobilePhone": return "Phone (mobile, SMS)";
+        case "voiceMobile": return "Phone (mobile, voice call)";
+        case "voiceOffice": return "Phone (office, voice call)";
+        case "softwareOath": return "Software OATH Token";
+        default: return raw;
+      }
+    }
 
     async function lookupMfa() {
       const upn = document.getElementById('upnInput').value.trim();
@@ -73,8 +99,14 @@
         }
 
         let html = `<h2>MFA Methods for ${data.upn}</h2>`;
-        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph.friendly) {
-          html += `<p class='info'><b>Default MFA Method:</b> ${data.preferredDefaultFromGraph.friendly}</p>`;
+
+        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph.raw) {
+          const friendlyDefault = mapFriendlyDefault(data.preferredDefaultFromGraph.raw);
+          html += `
+            <div class="info-box">
+              ⭐ <strong>Default MFA Method:</strong> ${friendlyDefault}
+            </div>
+          `;
         }
 
         html += `
@@ -92,10 +124,7 @@
         data.methods.forEach(m => {
           const icon = icons[m.type] || icons["Unknown"];
           const deviceOrNumber = m.device || m.number || "-";
-
-          // highlight row if this method is the preferred default
-          const isDefault = m.isDefault === true;
-          const rowClass = isDefault ? "defaultRow" : "";
+          const rowClass = m.isDefault ? "defaultRow" : "";
 
           html += `
             <tr class="${rowClass}">
