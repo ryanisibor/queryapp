@@ -13,10 +13,10 @@
     th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
     th { background: #f4f4f4; }
     tr:nth-child(even) { background: #fafafa; }
+    .defaultRow { background-color: #e6ffe6 !important; }
     .error { color: #b00020; font-weight: bold; }
     .empty { color: #555; }
     .info { color: #0066cc; }
-    .default { font-weight: bold; color: green; }
   </style>
 </head>
 <body>
@@ -84,7 +84,6 @@
                 <th>Icon</th>
                 <th>Method Type</th>
                 <th>Device / Number</th>
-                <th>Default?</th>
               </tr>
             </thead>
             <tbody>
@@ -92,13 +91,17 @@
 
         data.methods.forEach(m => {
           const icon = icons[m.type] || icons["Unknown"];
-          let deviceOrNumber = m.device || m.number || "-";
+          const deviceOrNumber = m.device || m.number || "-";
+
+          // highlight row if this method is the preferred default
+          const isDefault = m.isDefault === true;
+          const rowClass = isDefault ? "defaultRow" : "";
+
           html += `
-            <tr>
+            <tr class="${rowClass}">
               <td>${icon}</td>
               <td>${m.type}</td>
               <td>${deviceOrNumber}</td>
-              <td>${m.isDefault ? "<span class='default'>✔ Yes</span>" : "—"}</td>
             </tr>
           `;
         });
