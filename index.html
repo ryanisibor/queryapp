@@ -47,54 +47,54 @@
 
   <div id="results" class="methods"></div>
 
-  <script>
-    async function lookupMfa() {
-      const upn = document.getElementById("upnInput").value.trim();
-      const resultsDiv = document.getElementById("results");
-      resultsDiv.innerHTML = "Searching...";
+ <script>
+  async function lookupMfa() {
+    const upn = document.getElementById("upnInput").value.trim();
+    const resultsDiv = document.getElementById("results");
+    resultsDiv.innerHTML = "Searching...";
 
-      try {
-        const res = await fetch(`/api/mfa-methods?upn=${encodeURIComponent(upn)}`);
-        const data = await res.json();
+    try {
+      const res = await fetch(`/api/mfa-methods?upn=${encodeURIComponent(upn)}`);
+      const data = await res.json();
 
-        if (!data.methods || data.methods.length === 0) {
-          resultsDiv.innerHTML = "<p>No MFA methods found.</p>";
-          return;
-        }
-
-        let html = `<h3>MFA Methods for ${upn}</h3>`;
-        html += "<ul>";
-        for (const method of data.methods) {
-          let display = "";
-
-          switch (method["@odata.type"]) {
-            case "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod":
-              display = "Microsoft Authenticator App";
-              break;
-            case "#microsoft.graph.phoneAuthenticationMethod":
-              display = `Phone (SMS/Call): ${method.phoneNumber || "N/A"}`;
-              break;
-            case "#microsoft.graph.fido2AuthenticationMethod":
-              display = "FIDO2 Security Key";
-              break;
-            case "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod":
-              display = "Windows Hello for Business";
-              break;
-            default:
-              display = method["@odata.type"] || "Unknown Method";
-          }
-
-          html += `<li class="method">✔ ${display}</li>`;
-        }
-        html += "</ul>";
-
-        resultsDiv.innerHTML = html;
-      } catch (err) {
-        console.error(err);
-        resultsDiv.innerHTML = "<p style='color:red;'>Error fetching MFA methods</p>";
+      if (!data.methods || data.methods.length === 0) {
+        resultsDiv.innerHTML = "<p>No MFA methods found.</p>";
+        return;
       }
+
+      let html = `<h3>MFA Methods for ${upn}</h3>`;
+      html += "<ul>";
+
+      for (const method of data.methods) {
+        let display = `${method.type}`;
+
+        // Add extra info if available
+        if (method.number) {
+          display += ` (${method.number})`;
+        }
+        if (method.device && method.type !== "Phone") {
+          display += ` (${method.device})`;
+        }
+        if (method.model) {
+          display += ` (${method.model})`;
+        }
+
+        // Highlight default method
+        if (method.isDefault) {
+          display += " <strong>(Default)</strong>";
+        }
+
+        html += `<li class="method">✔ ${display}</li>`;
+      }
+
+      html += "</ul>";
+      resultsDiv.innerHTML = html;
+    } catch (err) {
+      console.error(err);
+      resultsDiv.innerHTML = "<p style='color:red;'>Error fetching MFA methods</p>";
     }
-  </script>
+  }
+</script>
 </body>
 </html>
 
