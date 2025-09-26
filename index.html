@@ -60,36 +60,6 @@
     let lastResponse = null;
     let showingRaw = false;
 
-    // Map raw Graph "preferredDefaultFromGraph" values into friendly labels
-    function mapPreferredDefault(value) {
-      switch (value) {
-        case "microsoftAuthenticator":
-          return "Microsoft Authenticator";
-        case "fido2":
-          return "FIDO2 Security Key";
-        case "windowsHelloForBusiness":
-          return "Windows Hello for Business";
-        case "mobilePhone":
-          return "Phone (mobile, SMS)";
-        case "alternateMobilePhone":
-          return "Phone (alternate mobile, SMS)";
-        case "officePhone":
-          return "Phone (office, SMS)";
-        case "voiceMobile":
-          return "Phone (mobile, voice call)";
-        case "voiceAlternateMobile":
-          return "Phone (alternate mobile, voice call)";
-        case "voiceOffice":
-          return "Phone (office, voice call)";
-        case "email":
-          return "Email";
-        case "softwareOath":
-          return "Software OATH Token";
-        default:
-          return value; // fallback to raw string
-      }
-    }
-
     async function lookupMfa() {
       const upn = document.getElementById("upnInput").value.trim();
       const resultsDiv = document.getElementById("results");
@@ -112,10 +82,9 @@
 
         let html = `<h3>MFA Methods for ${upn}</h3>`;
 
-        // Show preferred default (from Graph beta / Entra portal)
-        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph !== "unknown") {
-          const friendlyName = mapPreferredDefault(data.preferredDefaultFromGraph);
-          html += `<p><strong>Default MFA Method (from Entra portal):</strong> ${friendlyName}</p>`;
+        // Show preferred default (from Entra portal, using friendly value)
+        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph.friendly && data.preferredDefaultFromGraph.raw !== "unknown") {
+          html += `<p><strong>Default MFA Method (from Entra portal):</strong> ${data.preferredDefaultFromGraph.friendly}</p>`;
         } else {
           html += `<p><em>Default MFA Method info not available</em></p>`;
         }
