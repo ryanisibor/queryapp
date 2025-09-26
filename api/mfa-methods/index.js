@@ -56,56 +56,68 @@ module.exports = async function (context, req) {
     }
 
     // 🎯 Normalize methods
-    const methods = graphData.value.map((m) => {
-      const type = m["@odata.type"];
-      let friendly = {};
-      switch (type) {
-        case "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod":
-          friendly = {
-            type: "Microsoft Authenticator",
-            device: m.displayName || "Authenticator app",
-            isDefault: m.isDefault || false
-          };
-          break;
+    const methods = graphData.value
+      .map((m) => {
+        const type = m["@odata.type"];
 
-        case "#microsoft.graph.phoneAuthenticationMethod":
-          friendly = {
-            type: "Phone",
-            number: m.phoneNumber || "N/A",
-            phoneType: m.phoneType,
-            smsSignInEnabled: m.smsSignInState === "enabled",
-            isDefault: false // Graph doesn't flag default here
-          };
-          break;
+        // Skip password authentication (not MFA)
+        if (type === "#microsoft.graph.passwordAuthenticationMethod") {
+          return null;
+        }
 
-        case "#microsoft.graph.fido2AuthenticationMethod":
-          friendly = {
-            type: "FIDO2 Security Key",
-            model: m.model || "Security Key",
-            isDefault: m.isDefault || false
-          };
-          break;
+        let friendly = {};
+        switch (type) {
+          case "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod":
+            friendly = {
+              type: "Microsoft Authenticator",
+              device: m.displayName || "Authenticator app",
+              isDefault: m.isDefault === true
+            };
+            break;
 
-        case "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod":
-          friendly = {
-            type: "Windows Hello for Business",
-            device: m.displayName || "Windows Hello",
-            keyStrength: m.keyStrength
-          };
-          break;
+          case "#microsoft.graph.phoneAuthenticationMethod":
+            friendly = {
+              type: "Phone",
+              number: m.phoneNumber || "N/A",
+              phoneType: m.phoneType,
+              smsSignInEnabled: m.smsSignInState === "enabled",
+              // Graph doesn’t expose default info for phones
+              isDefault: null
+            };
+            break;
 
-        case "#microsoft.graph.softwareOathAuthenticationMethod":
-          friendly = {
-            type: "Software OATH Token",
-            device: m.displayName || "OATH TOTP"
-          };
-          break;
+          case "#microsoft.graph.fido2AuthenticationMethod":
+            friendly = {
+              type: "FIDO2 Security Key",
+              model: m.model || "Security Key",
+              isDefault: m.isDefault === true
+            };
+            break;
 
-        default:
-          friendly = { type: type || "Unknown", raw: m };
-      }
-      return friendly;
-    });
+          case "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod":
+            friendly = {
+              type: "Windows Hello for Business",
+              device: m.displayName || "Windows Hello",
+              keyStrength: m.keyStrength,
+              // Graph doesn’t expose default info here either
+              isDefault: null
+            };
+            break;
+
+          case "#microsoft.graph.softwareOathAuthenticationMethod":
+            friendly = {
+              type: "Software OATH Token",
+              device: m.displayName || "OATH TOTP",
+              isDefault: null
+            };
+            break;
+
+          default:
+            friendly = { type: type || "Unknown", raw: m };
+        }
+        return friendly;
+      })
+      .filter((m) => m !== null);
 
     context.res = {
       status: 200,
