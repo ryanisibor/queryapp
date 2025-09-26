@@ -2,149 +2,79 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MFA Lookup</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 700px;
-      margin: 2rem auto;
-      padding: 1rem;
-      background: #f9f9f9;
-    }
-    h1 { color: #333; }
-    input, button {
-      padding: 0.5rem;
-      font-size: 1rem;
-    }
-    button {
-      margin-left: 0.5rem;
-      cursor: pointer;
-    }
-    .methods {
-      margin-top: 1.5rem;
-      background: #fff;
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    .method {
-      margin: 0.5rem 0;
-      padding: 0.5rem;
-      border-bottom: 1px solid #ddd;
-    }
-    .method:last-child {
-      border-bottom: none;
-    }
-    pre {
-      background: #222;
-      color: #eee;
-      padding: 1rem;
-      border-radius: 8px;
-      overflow-x: auto;
-    }
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    input, button { padding: 0.5rem; margin-right: 0.5rem; }
+    #results { margin-top: 1rem; }
+    .error { color: red; margin-top: 1rem; }
+    .empty { color: #666; margin-top: 1rem; }
   </style>
 </head>
 <body>
-  <h1>MFA Lookup</h1>
-  <div>
-    <input type="text" id="upnInput" placeholder="Enter UserPrincipalName" />
-    <button onclick="lookupMfa()">Search</button>
-    <button id="toggleBtn" onclick="toggleRaw()" style="display:none;">Show Raw Data</button>
-  </div>
+  <h1>MFA Lookup Tool</h1>
+  <p>Enter a User Principal Name (UPN) to see configured MFA methods.</p>
+  <input type="text" id="upnInput" placeholder="e.g. user@contoso.com" />
+  <button onclick="lookupMfa()">Search</button>
 
-  <div id="results" class="methods"></div>
-  <div id="raw" class="methods" style="display:none;"></div>
+  <div id="results"></div>
+  <div id="message"></div>
 
   <script>
-    let lastResponse = null;
-    let showingRaw = false;
-
     async function lookupMfa() {
-      const upn = document.getElementById("upnInput").value.trim();
-      const resultsDiv = document.getElementById("results");
-      const rawDiv = document.getElementById("raw");
-      const toggleBtn = document.getElementById("toggleBtn");
-      resultsDiv.innerHTML = "Searching...";
-      rawDiv.style.display = "none";
-      resultsDiv.style.display = "block";
-      toggleBtn.style.display = "none";
+      const upn = document.getElementById('upnInput').value.trim();
+      const resultsDiv = document.getElementById('results');
+      const messageDiv = document.getElementById('message');
+      
+      resultsDiv.innerHTML = "";
+      messageDiv.innerHTML = "";
+
+      if (!upn) {
+        messageDiv.innerHTML = "<div class='error'>❌ Please enter a UPN.</div>";
+        return;
+      }
 
       try {
-        const res = await fetch(`/api/mfa-methods?upn=${encodeURIComponent(upn)}`);
-        const data = await res.json();
-        lastResponse = data;
+        const response = await fetch(`/api/mfa-methods?upn=${encodeURIComponent(upn)}`);
+        
+        if (!response.ok) {
+          throw new Error(`Server responded with ${response.status}`);
+        }
 
-        if (!data.methods || data.methods.length === 0) {
-          resultsDiv.innerHTML = "<p>No MFA methods found.</p>";
+        const data = await response.json();
+
+        // If Graph error bubble up
+        if (data.error) {
+          messageDiv.innerHTML = `<div class='error'>❌ Error: ${data.error}</div>`;
           return;
         }
 
-        let html = `<h3>MFA Methods for ${upn}</h3>`;
+        if (!data.methods || data.methods.length === 0) {
+          messageDiv.innerHTML = `<div class='empty'>ℹ️ No MFA methods found for <b>${upn}</b>.</div>`;
+          return;
+        }
 
-        // Show preferred default (from Entra portal, using friendly value)
-        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph.friendly && data.preferredDefaultFromGraph.raw !== "unknown") {
-          html += `<p><strong>Default MFA Method (from Entra portal):</strong> ${data.preferredDefaultFromGraph.friendly}</p>`;
-        } else {
-          html += `<p><em>Default MFA Method info not available</em></p>`;
+        let html = `<h2>MFA Methods for ${data.upn}</h2>`;
+        if (data.preferredDefaultFromGraph && data.preferredDefaultFromGraph.friendly) {
+          html += `<p><b>Default MFA Method:</b> ${data.preferredDefaultFromGraph.friendly}</p>`;
         }
 
         html += "<ul>";
-
-        for (const method of data.methods) {
-          let display = `${method.type}`;
-
-          if (method.number) {
-            display += ` (${method.number})`;
-          }
-          if (method.device && method.type !== "Phone") {
-            display += ` (${method.device})`;
-          }
-          if (method.model) {
-            display += ` (${method.model})`;
-          }
-
-          if (method.isDefault === true) {
-            display += " <strong>(Default)</strong>";
-          } else if (method.isDefault === null) {
-            display += " <em>(default info not available)</em>";
-          }
-
-          html += `<li class="method">✔ ${display}</li>`;
-        }
-
+        data.methods.forEach(m => {
+          html += `<li>✔ ${m.type}`;
+          if (m.device) html += ` (${m.device})`;
+          if (m.number) html += ` (${m.number})`;
+          if (m.isDefault) html += " <b>[Default]</b>";
+          html += "</li>";
+        });
         html += "</ul>";
-        resultsDiv.innerHTML = html;
 
-        // Enable toggle button
-        toggleBtn.style.display = "inline-block";
-        showingRaw = false;
-        toggleBtn.innerText = "Show Raw Data";
+        resultsDiv.innerHTML = html;
       } catch (err) {
         console.error(err);
-        resultsDiv.innerHTML = "<p style='color:red;'>Error fetching MFA methods</p>";
+        messageDiv.innerHTML = `<div class='error'>❌ An error occurred while fetching MFA methods. Details: ${err.message}</div>`;
       }
-    }
-
-    function toggleRaw() {
-      const resultsDiv = document.getElementById("results");
-      const rawDiv = document.getElementById("raw");
-      const toggleBtn = document.getElementById("toggleBtn");
-
-      if (!lastResponse) return;
-
-      if (showingRaw) {
-        rawDiv.style.display = "none";
-        resultsDiv.style.display = "block";
-        toggleBtn.innerText = "Show Raw Data";
-      } else {
-        rawDiv.innerHTML = `<pre>${JSON.stringify(lastResponse, null, 2)}</pre>`;
-        rawDiv.style.display = "block";
-        resultsDiv.style.display = "none";
-        toggleBtn.innerText = "Show Friendly View";
-      }
-
-      showingRaw = !showingRaw;
     }
   </script>
 </body>
