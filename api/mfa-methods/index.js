@@ -27,6 +27,11 @@ function mapPreferredDefault(value) {
     case "softwareOath":
     case "oath":
       return "Software OATH Token";
+    case "email":
+      return "Email (not recommended for MFA)";
+    case "unknown":
+    case null:
+      return "No default MFA method configured";
     default:
       return value; // fallback to raw string
   }
@@ -121,7 +126,9 @@ module.exports = async function (context, req) {
             friendly = {
               type: "Microsoft Authenticator",
               device: m.displayName || "Authenticator app",
-              isDefault: preferredDefaultRaw === "microsoftAuthenticator" || preferredDefaultRaw === "push"
+              isDefault:
+                preferredDefaultRaw === "microsoftAuthenticator" ||
+                preferredDefaultRaw === "push"
             };
             break;
 
@@ -163,7 +170,9 @@ module.exports = async function (context, req) {
             friendly = {
               type: "Software OATH Token",
               device: m.displayName || "OATH TOTP",
-              isDefault: preferredDefaultRaw === "softwareOath" || preferredDefaultRaw === "oath"
+              isDefault:
+                preferredDefaultRaw === "softwareOath" ||
+                preferredDefaultRaw === "oath"
             };
             break;
 
