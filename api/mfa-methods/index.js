@@ -91,30 +91,26 @@ module.exports = async function (context, req) {
     ]);
 
     // Handle Graph errors for methods
-    if (methodsData.error) {
-      const code = methodsData.error.code || "";
-      const message = methodsData.error.message || "Unknown Graph error";
-
-      if (code === "Request_ResourceNotFound") {
+    if (!methodsResponse.ok) {
+      if (methodsResponse.status === 404) {
         context.res = { status: 404, body: { error: `User ${upn} not found` } };
         return;
       }
 
-      context.res = { status: 400, body: { error: `Graph error: ${message}` } };
+      const message = methodsData.error?.message || `Graph returned ${methodsResponse.status}`;
+      context.res = { status: methodsResponse.status, body: { error: message } };
       return;
     }
 
     // Handle Graph errors for preferences
-    if (prefData.error) {
-      const code = prefData.error.code || "";
-      const message = prefData.error.message || "Unknown Graph error";
-
-      if (code === "Request_ResourceNotFound") {
+    if (!prefResponse.ok) {
+      if (prefResponse.status === 404) {
         context.res = { status: 404, body: { error: `User ${upn} not found` } };
         return;
       }
 
-      context.res = { status: 400, body: { error: `Graph error: ${message}` } };
+      const message = prefData.error?.message || `Graph returned ${prefResponse.status}`;
+      context.res = { status: prefResponse.status, body: { error: message } };
       return;
     }
 
