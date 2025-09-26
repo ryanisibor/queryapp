@@ -2,25 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>MFA Lookup</title>
+  <title>MFA Lookup Tool</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
       background: #f5f6fa;
     }
     header {
       display: flex;
       align-items: center;
-      margin-bottom: 20px;
+      justify-content: center; /* center horizontally */
+      background: #ffffff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 15px;
     }
     header img {
       height: 40px;
       margin-right: 15px;
     }
-    h1 {
+    header h1 {
       color: #333;
       margin: 0;
+      font-size: 1.8em;
+    }
+    main {
+      padding: 20px;
     }
     input {
       padding: 8px;
@@ -96,15 +103,17 @@
 <body>
   <header>
     <img src="https://qvc.scene7.com/is/image/QVC/pic/ap/QVC_Logo_Full.png?fmt=png-alpha" alt="QVC Logo">
-    <h1>MFA Lookup</h1>
+    <h1>MFA Lookup Tool</h1>
   </header>
 
-  <input type="text" id="upnInput" placeholder="e.g. user@contoso.com"/>
-  <button id="searchBtn" onclick="lookupMfa()">Search</button>
-  <button onclick="clearResults()">Clear</button>
+  <main>
+    <input type="text" id="upnInput" placeholder="e.g. user@contoso.com"/>
+    <button id="searchBtn" onclick="lookupMfa()">Search</button>
+    <button onclick="clearResults()">Clear</button>
 
-  <div id="message"></div>
-  <div id="results"></div>
+    <div id="message"></div>
+    <div id="results"></div>
+  </main>
 
   <script>
     const icons = {
