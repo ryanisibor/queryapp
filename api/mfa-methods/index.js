@@ -22,8 +22,6 @@ function mapPreferredDefault(value) {
       return "Phone (alternate mobile, voice call)";
     case "voiceOffice":
       return "Phone (office, voice call)";
-    case "email":
-      return "Email";
     case "softwareOath":
       return "Software OATH Token";
     default:
@@ -99,7 +97,8 @@ module.exports = async function (context, req) {
       );
     }
 
-    const preferredDefaultRaw = prefData.userPreferredMethodForSecondaryAuthentication || "unknown";
+    const preferredDefaultRaw =
+      prefData.userPreferredMethodForSecondaryAuthentication || "unknown";
     const preferredDefaultFriendly = mapPreferredDefault(preferredDefaultRaw);
 
     // 🎯 Normalize methods
@@ -107,8 +106,11 @@ module.exports = async function (context, req) {
       .map((m) => {
         const type = m["@odata.type"];
 
-        // Skip passwordAuthenticationMethod (not MFA)
-        if (type === "#microsoft.graph.passwordAuthenticationMethod") {
+        // Skip password and email authentication methods (not MFA)
+        if (
+          type === "#microsoft.graph.passwordAuthenticationMethod" ||
+          type === "#microsoft.graph.emailAuthenticationMethod"
+        ) {
           return null;
         }
 
